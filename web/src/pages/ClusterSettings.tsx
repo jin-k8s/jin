@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import { ArrowLeft, CircleCheck, Plus, Save, Search, Trash2, TriangleAlert } from 'lucide-react'
 import { api, useResource } from '../api'
 import { Button, Card, ErrorBox, Field, PageHeader, Pill, Spinner, cx, inputCls } from '../components/ui'
@@ -23,6 +23,7 @@ export function ClusterSettingsPage() {
   const [params] = useSearchParams()
   const context = params.get('context') ?? ''
   const can = useCan()
+  const navigate = useNavigate()
   const admin = can('admin')
   const loaded = useResource(() => api.settings(context), [context])
   const [s, setS] = useState<ClusterSettings>()
@@ -146,7 +147,7 @@ export function ClusterSettingsPage() {
           <div className="space-y-5 p-5">
             <p className="text-sm text-muted">
               Jin opens one pull request per stage against this repository, waits for it to be merged and for your pipeline to apply it, then verifies
-              the cluster. Tokens are never stored: Jin reads them from the server environment.
+              the cluster. It uses the GitHub token from Integrations (stored encrypted) or the server environment.
             </p>
             <div className="grid gap-4 sm:grid-cols-3">
               <Field label="Owner">
@@ -158,8 +159,21 @@ export function ClusterSettingsPage() {
               <Field label="Base branch" hint="Defaults to the repository's default branch.">
                 <input value={g?.baseBranch ?? ''} onChange={(e) => setG({ baseBranch: e.target.value || undefined })} placeholder="main" className={inputCls} />
               </Field>
-              <Field label="Token environment variable" hint={loaded.data?.tokenPresent === false ? <span className="text-amber-600">Not set on the server.</span> : 'Must start with GITHUB_ or JIN_GITHUB_.'}>
-                <input value={g?.tokenEnv ?? ''} onChange={(e) => setG({ tokenEnv: e.target.value || undefined })} placeholder="GITHUB_TOKEN" className={cx(inputCls, 'font-mono')} />
+              <Field
+                label="Token environment variable (optional)"
+                hint={
+                  loaded.data?.tokenPresent === false ? (
+                    <span className="text-amber-600">
+                      No token available. <Link className="underline" to="/integrations">Add one under Integrations</Link>.
+                    </span>
+                  ) : loaded.data?.tokenSource === 'jin' ? (
+                    'Using the token stored in Jin. Set a GITHUB_… variable only to override it.'
+                  ) : (
+                    `Using ${loaded.data?.tokenSource?.replace('env:', '$') ?? 'the server environment'}.`
+                  )
+                }
+              >
+                <input value={g?.tokenEnv ?? ''} onChange={(e) => setG({ tokenEnv: e.target.value || undefined })} placeholder="Stored token" className={cx(inputCls, 'font-mono')} />
               </Field>
               <Field label="GitHub Enterprise API URL" hint="Leave empty for github.com.">
                 <input value={g?.baseUrl ?? ''} onChange={(e) => setG({ baseUrl: e.target.value || undefined })} placeholder="https://ghe.example.com/api/v3" className={inputCls} />
@@ -228,6 +242,25 @@ export function ClusterSettingsPage() {
           </div>
         </Card>
       </fieldset>
+
+      {admin && loaded.data?.registered && (
+        <Card className="mt-6 border-red-500/30" title="Remove cluster">
+          <div className="flex flex-wrap items-center justify-between gap-4 p-5 text-sm">
+            <p className="text-muted">Stops managing this cluster in Jin and deletes its settings. Nothing changes in the cluster or in AWS.</p>
+            <Button
+              variant="danger"
+              icon={<Trash2 className="size-4" />}
+              onClick={async () => {
+                if (!window.confirm('Remove this cluster from Jin?')) return
+                await api.removeCluster(context)
+                navigate('/fleet')
+              }}
+            >
+              Remove from Jin
+            </Button>
+          </div>
+        </Card>
+      )}
     </>
   )
 }

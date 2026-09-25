@@ -24,6 +24,7 @@ import (
 	"github.com/jin-k8s/jin/internal/auth"
 	"github.com/jin-k8s/jin/internal/clusters"
 	"github.com/jin-k8s/jin/internal/config"
+	"github.com/jin-k8s/jin/internal/secrets"
 	"github.com/jin-k8s/jin/internal/server"
 	"github.com/jin-k8s/jin/internal/upgrade"
 )
@@ -92,6 +93,9 @@ func runServer(cmd *cobra.Command, g *globalOptions, o *serverOptions) error {
 		fmt.Fprintf(cmd.ErrOrStderr(), "  WARNING: audit log hash chain is broken at entry %d; it may have been edited.\n", at)
 	}
 	env.Settings = clusters.NewStore(filepath.Join(home, "clusters.json"))
+	if env.Secrets, err = secrets.Open(filepath.Join(home, "secrets.json"), filepath.Join(home, "secrets.key")); err != nil {
+		return err
+	}
 
 	engine := upgrade.NewEngine(upgrade.NewStore(filepath.Join(home, "upgrades")), env.Connector())
 	if err := engine.Resume(); err != nil {

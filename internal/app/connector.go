@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
@@ -16,7 +17,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"golang.org/x/oauth2/google"
 
-	"github.com/jin-k8s/jin/internal/clusters"
 	aksexec "github.com/jin-k8s/jin/internal/executor/aks"
 	eksexec "github.com/jin-k8s/jin/internal/executor/eks"
 	gkeexec "github.com/jin-k8s/jin/internal/executor/gke"
@@ -116,9 +116,9 @@ func (e *Env) gitopsExecutor(ctx context.Context, u *upgrade.Upgrade, c *cluster
 	if g == nil || len(g.Targets) == 0 {
 		return nil, errors.New("GitOps mode needs a repository and at least one version target in the cluster settings")
 	}
-	token := g.Token()
+	token, source := e.GitHubToken(g)
 	if token == "" {
-		return nil, fmt.Errorf("GitOps mode needs a GitHub token in $%s on the Jin server", tokenEnv(g))
+		return nil, fmt.Errorf("GitOps mode needs a GitHub token: add one under Integrations in the UI, or set %s on the Jin server", strings.TrimPrefix(source, "env:"))
 	}
 	name := u.Cluster.Context
 	x := &gitops.Executor{
@@ -139,13 +139,6 @@ func (e *Env) gitopsExecutor(ctx context.Context, u *upgrade.Upgrade, c *cluster
 		}
 	}
 	return x, nil
-}
-
-func tokenEnv(g *clusters.GitOps) string {
-	if g.TokenEnv != "" {
-		return g.TokenEnv
-	}
-	return "GITHUB_TOKEN"
 }
 
 func eksExecutor(ctx context.Context, ref *upgrade.EKSRef, nodes func(context.Context) ([]inventory.Node, error)) (*eksexec.Executor, error) {

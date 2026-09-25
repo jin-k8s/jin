@@ -194,8 +194,11 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	resp := map[string]any{"settings": st}
 	if st.GitOps != nil {
-		resp["tokenPresent"] = st.GitOps.Token() != ""
+		tok, source := s.cfg.Env.GitHubToken(st.GitOps)
+		resp["tokenPresent"] = tok != ""
+		resp["tokenSource"] = source
 	}
+	_, resp["registered"] = s.cfg.Env.Settings.Registration(name)
 	writeJSON(w, http.StatusOK, resp)
 }
 
@@ -241,9 +244,9 @@ func (s *Server) discover(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	token := req.GitOps.Token()
+	token, _ := s.cfg.Env.GitHubToken(&req.GitOps)
 	if token == "" {
-		writeError(w, http.StatusBadRequest, fmt.Sprintf("set $%s on the Jin server to a token with read access to the repository", orDefault(req.GitOps.TokenEnv, "GITHUB_TOKEN")))
+		writeError(w, http.StatusBadRequest, "no GitHub token: add one under Integrations, or set "+orDefault(req.GitOps.TokenEnv, "GITHUB_TOKEN")+" on the Jin server")
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)

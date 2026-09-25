@@ -51,6 +51,13 @@ server (API, SSE, UI, auth, RBAC, policy, audit) ─► upgrade.Engine ─► ex
   deterministic branch `jin/<upgrade>/<version>-<stage>`, waits for merge then observes the cluster).
 - `clusters`: per-context settings (`$JIN_HOME/clusters.json`): environment, GitOps repo and targets, AKS/GKE
   identity. Tokens are never stored; `tokenEnv` must match `^(GITHUB|JIN_GITHUB)_…`.
+- `secrets`: AES-256-GCM store for UI-entered credentials (`$JIN_HOME/secrets.json`, key in `secrets.key`,
+  both 0600; the secret name is bound as AAD). Values are write-only through the API and never audited.
+  GitHub token precedence (`Env.GitHubToken`): explicit `tokenEnv` → stored token → `GITHUB_TOKEN`.
+- Registered clusters (`clusters.Registration`, context `eks:<region>:<name>`) are added from the UI and
+  reached without a kubeconfig: `app/eks.go` builds a rest.Config with the stored endpoint/CA and an STS
+  presigned token (`k8s-aws-v1.…`, refreshed every 10 min). `AWSClients` is the test seam. A missing
+  kubeconfig is valid. Never accept cloud access keys in the UI; use profiles/SSO/roles on the server.
 - `snapshot`, `migrate`: read-only workload/cloud-binding snapshot; blue/green `Compare`; `Assess` maps
   bindings to the target cloud with effort points → S/M/L/XL.
 - `config`, `auth`, `policy`, `audit`: `$JIN_HOME/config.yaml` (strict) for OIDC, RBAC bindings, approval
@@ -65,4 +72,4 @@ server (API, SSE, UI, auth, RBAC, policy, audit) ─► upgrade.Engine ─► ex
   `useCan(role)` hides controls, but the server is the enforcement point. The logo is `web/public/jin-icon.svg`,
   a copy of `docs/assets/jin-icon.svg`.
 
-Module path `github.com/jin-k8s/jin` is a placeholder until the GitHub org is chosen.
+Module path `github.com/jin-k8s/jin` matches the GitHub org `jin-k8s`.

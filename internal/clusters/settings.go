@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/jin-k8s/jin/internal/gitops"
 	"github.com/jin-k8s/jin/internal/upgrade"
@@ -27,13 +28,29 @@ type GitOps struct {
 	ApplyTimeoutMinutes int             `json:"applyTimeoutMinutes,omitempty"`
 }
 
-func (g *GitOps) Token() string {
+// EnvToken reads the token from the configured environment variable (default GITHUB_TOKEN).
+func (g *GitOps) EnvToken() string {
 	name := g.TokenEnv
 	if name == "" {
 		name = "GITHUB_TOKEN"
 	}
 	return os.Getenv(name)
 }
+
+// Registration is a cluster added through Jin rather than the kubeconfig. Jin authenticates to it
+// natively (EKS: STS-signed tokens from the server's AWS credentials), so no kubeconfig is needed.
+type Registration struct {
+	Context  string         `json:"context"`
+	Provider string         `json:"provider"`
+	EKS      upgrade.EKSRef `json:"eks"`
+	Endpoint string         `json:"endpoint"`
+	CAData   []byte         `json:"caData"`
+	AddedBy  string         `json:"addedBy"`
+	AddedAt  time.Time      `json:"addedAt"`
+}
+
+// EKSContext is the context name used for a registered EKS cluster.
+func EKSContext(region, name string) string { return "eks:" + region + ":" + name }
 
 type Settings struct {
 	Context string `json:"context"`
@@ -90,12 +107,13 @@ type Store struct {
 func NewStore(path string) *Store { return &Store{path: path} }
 
 type file struct {
-	Version  int                  `json:"version"`
-	Clusters map[string]*Settings `json:"clusters"`
+	Version    int                      `json:"version"`
+	Clusters   map[string]*Settings     `json:"clusters"`
+	Registered map[string]*Registration `json:"registered,omitempty"`
 }
 
 func (s *Store) load() (*file, error) {
-	f := &file{Version: 1, Clusters: map[string]*Settings{}}
+	f := &file{Version: 1, Clusters: map[string]*Settings{}, Registered: map[string]*Registration{}}
 	b, err := os.ReadFile(s.path)
 	if errors.Is(err, os.ErrNotExist) {
 		return f, nil
@@ -108,6 +126,9 @@ func (s *Store) load() (*file, error) {
 	}
 	if f.Clusters == nil {
 		f.Clusters = map[string]*Settings{}
+	}
+	if f.Registered == nil {
+		f.Registered = map[string]*Registration{}
 	}
 	return f, nil
 }
@@ -151,6 +172,10 @@ func (s *Store) Put(st *Settings) error {
 		return err
 	}
 	f.Clusters[st.Context] = st
+	return s.write(f)
+}
+
+func (s *Store) write(f *file) error {
 	b, err := json.MarshalIndent(f, "", "  ")
 	if err != nil {
 		return err
@@ -170,4 +195,57 @@ func (s *Store) Put(st *Settings) error {
 		return err
 	}
 	return os.Rename(tmp.Name(), s.path)
+}
+
+func (s *Store) Register(r *Registration) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	f, err := s.load()
+	if err != nil {
+		return err
+	}
+	f.Registered[r.Context] = r
+	return s.write(f)
+}
+
+// Unregister removes a registered cluster and its settings.
+func (s *Store) Unregister(context string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	f, err := s.load()
+	if err != nil {
+		return err
+	}
+	if _, ok := f.Registered[context]; !ok {
+		return fmt.Errorf("%s was not added through Jin", context)
+	}
+	delete(f.Registered, context)
+	delete(f.Clusters, context)
+	return s.write(f)
+}
+
+func (s *Store) Registrations() ([]*Registration, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	f, err := s.load()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*Registration, 0, len(f.Registered))
+	for _, r := range f.Registered {
+		out = append(out, r)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Context < out[j].Context })
+	return out, nil
+}
+
+func (s *Store) Registration(context string) (*Registration, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	f, err := s.load()
+	if err != nil {
+		return nil, false
+	}
+	r, ok := f.Registered[context]
+	return r, ok
 }

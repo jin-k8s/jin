@@ -66,7 +66,7 @@ bin/jin server --open   # web UI at http://localhost:7420
 | **Human in the loop** | Every hop waits for approval. Policies can require two approvers, forbid self-approval, require a change ticket, restrict approver groups and enforce change windows. |
 | **Blue/green** | Compare a replacement cluster with the live one: workloads and readiness, Helm releases, CRDs, storage and ingress classes, secret backends. Get a data and traffic cutover checklist. |
 | **Migrate** | Assess what ties a cluster to its cloud (IRSA / Workload Identity, disks, load balancers, ingress, registries, secret stores, scheduling labels, cloud operators) and what each maps to on the target cloud, with an effort estimate. |
-| **Fleet** | Every cluster at a glance: live version, support window and cost, last plan, active upgrade, governing policy. |
+| **Fleet** | Every cluster at a glance: live version, support window and cost, last plan, active upgrade, governing policy. **Add EKS clusters from the UI**: pick an AWS profile and region, choose a cluster, and Jin connects natively (no kubeconfig or aws CLI needed). |
 | **Teams** | OIDC single sign-on, RBAC (viewer, planner, approver, admin), and a hash-chained audit log exportable as CSV or JSONL. |
 
 Everything is open source under Apache-2.0: there is no enterprise edition.
@@ -103,7 +103,7 @@ Each stage runs through one of two executors:
 | Sources supported | Terraform (resources and registry modules, following `var.*` / `local.*` into tfvars and defaults), eksctl, ACK, Crossplane, Helm values, Argo CD apps | – |
 | IaC drift | None | Update your sources afterwards |
 | Waits for | Review, merge, then the cluster reaching the new version | Cloud operations to finish |
-| Credentials | GitHub token in the server environment | Cloud credentials (see [`deploy/iam`](deploy/iam/README.md)) |
+| Credentials | GitHub token added under **Integrations** (encrypted at rest) or in the server environment | Cloud credentials (see [`deploy/iam`](deploy/iam/README.md)) |
 
 Jin finds version fields in the repository itself (**Fleet → settings → Discover**) and edits them
 without disturbing comments or formatting. Branches are deterministic, so a restarted Jin resumes the
@@ -178,7 +178,11 @@ chain is intact.
 
 - **Planning, compare and assess are read-only.** The least-privilege ClusterRole is [`deploy/rbac/jin-readonly.yaml`](deploy/rbac/jin-readonly.yaml). Jin decodes only Helm release secrets, and keeps nothing but `apiVersion/kind/name` from them; use `--skip-helm` to avoid granting Secret access.
 - **Scoped cloud permissions.** See [`deploy/iam`](deploy/iam/README.md) for EKS, GKE, AKS and GitHub token scopes.
-- **Secrets stay in the environment.** OIDC client secrets and GitHub tokens are read from environment variables and never written to disk. Token variables must be named `GITHUB_*` or `JIN_GITHUB_*`, and repositories must live on github.com or an allowlisted GitHub Enterprise host, so settings cannot redirect a secret elsewhere.
+- **Secrets.**
+  - A GitHub token entered under **Integrations** is checked with GitHub, then stored with AES-256-GCM. The key lives in a separate `0600` file, and the token is never returned by the API or written to the audit log.
+  - Alternatively, supply tokens and the OIDC client secret through the environment or a secret manager. Token variables must be named `GITHUB_*` or `JIN_GITHUB_*`.
+  - Repositories must live on github.com or an allowlisted GitHub Enterprise host, so settings cannot redirect a secret elsewhere.
+- **No cloud keys in the UI.** Clusters added in Jin use the server's AWS profiles, SSO sessions, instance roles or an assumed role, and authenticate with short-lived STS-signed tokens.
 - **Sign-in.**
   - OIDC authorization-code flow with PKCE, state and nonce, and verified ID tokens.
   - Verified email and allowed domains are enforced.

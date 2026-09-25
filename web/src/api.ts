@@ -5,6 +5,7 @@ import type {
   Candidate,
   ClusterSettings,
   FleetRow,
+  GitHubIntegration,
   GitOpsSettings,
   Info,
   KubeContext,
@@ -33,7 +34,7 @@ export function onUnauthorized(fn: () => void) {
   }
 }
 
-async function request<T>(method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown): Promise<T> {
+async function request<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' }
   if (method !== 'GET') {
     headers['Content-Type'] = 'application/json'
@@ -69,7 +70,16 @@ export const api = {
   fleet: (refresh = false) => request<FleetRow[]>('GET', `/fleet${refresh ? '?refresh=1' : ''}`),
   policies: () => request<{ policies: PolicyView[]; default: PolicyView }>('GET', '/policies'),
   settings: (context: string) =>
-    request<{ settings: ClusterSettings; tokenPresent?: boolean }>('GET', `/settings?context=${enc(context)}`),
+    request<{ settings: ClusterSettings; tokenPresent?: boolean; tokenSource?: string; registered?: boolean }>('GET', `/settings?context=${enc(context)}`),
+  github: () => request<GitHubIntegration>('GET', '/integrations/github'),
+  saveGitHub: (token: string) => request<GitHubIntegration>('PUT', '/integrations/github', { token }),
+  removeGitHub: () => request<void>('DELETE', '/integrations/github'),
+  awsProfiles: () => request<{ profiles: string[] }>('GET', '/aws/profiles'),
+  eksClusters: (region: string, profile: string, roleArn: string) =>
+    request<{ clusters: string[] }>('GET', `/aws/eks-clusters?region=${enc(region)}&profile=${enc(profile)}&roleArn=${enc(roleArn)}`),
+  addCluster: (c: { provider: 'eks'; name: string; region: string; profile: string; roleArn: string }) =>
+    request<{ context: string; version: string; endpoint: string }>('POST', '/clusters', c),
+  removeCluster: (context: string) => request<void>('DELETE', `/clusters?context=${enc(context)}`),
   saveSettings: (s: ClusterSettings) => request<ClusterSettings>('PUT', '/settings', s),
   discover: (context: string, gitops: GitOpsSettings) =>
     request<{ branch: string; candidates: Candidate[]; warnings?: string[]; clusterHint: string }>('POST', '/settings/discover', { context, gitops }),

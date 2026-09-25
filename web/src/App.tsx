@@ -8,6 +8,7 @@ import { ClusterSettingsPage } from './pages/ClusterSettings'
 import { Compare } from './pages/Compare'
 import { Fleet } from './pages/Fleet'
 import { Governance } from './pages/Governance'
+import { Integrations } from './pages/Integrations'
 import { Migrate } from './pages/Migrate'
 import { Overview } from './pages/Overview'
 import { PlanDetail } from './pages/PlanDetail'
@@ -77,6 +78,7 @@ export function App() {
             <Route path="/compare" element={<Compare />} />
             <Route path="/migrate" element={<Migrate />} />
             <Route path="/governance" element={<Governance />} />
+            <Route path="/integrations" element={<Integrations />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>

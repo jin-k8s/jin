@@ -82,6 +82,17 @@ export interface KubeContext {
   aks?: AKSRef
   environment?: string
   gitops: boolean
+  registered?: boolean
+}
+
+export interface GitHubIntegration {
+  configured: boolean
+  source?: string
+  hint?: string
+  setAt?: string
+  setBy?: string
+  login?: string
+  scopes?: string
 }
 
 export type Status = 'pending' | 'awaiting-approval' | 'running' | 'succeeded' | 'failed' | 'skipped' | 'cancelled'

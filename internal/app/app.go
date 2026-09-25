@@ -4,7 +4,9 @@ package app
 import (
 	"context"
 
+	"errors"
 	"fmt"
+	"os"
 	"regexp"
 	"sort"
 	"time"
@@ -26,6 +28,7 @@ import (
 	"github.com/jin-k8s/jin/internal/kube"
 	"github.com/jin-k8s/jin/internal/plan"
 	"github.com/jin-k8s/jin/internal/runrecord"
+	"github.com/jin-k8s/jin/internal/secrets"
 	"github.com/jin-k8s/jin/internal/snapshot"
 	"github.com/jin-k8s/jin/internal/support"
 	"github.com/jin-k8s/jin/internal/upgrade"
@@ -49,6 +52,8 @@ type Context struct {
 	// Environment and GitOps come from the cluster settings.
 	Environment string `json:"environment,omitempty"`
 	GitOps      bool   `json:"gitops"`
+	// Registered clusters were added in Jin and are reached without a kubeconfig.
+	Registered bool `json:"registered,omitempty"`
 }
 
 // Provider is the managed Kubernetes offering this context points at, when known.
@@ -79,6 +84,25 @@ type Env struct {
 	Runs       *runrecord.Store
 	// Settings is optional; the CLI planner works without it.
 	Settings *clusters.Store
+	// Secrets holds credentials entered in the UI (server only).
+	Secrets *secrets.Store
+}
+
+// GitHubSecret is the secrets-store name of the GitHub token entered in the UI.
+const GitHubSecret = "github"
+
+// GitHubToken resolves the token for a repository: an explicit tokenEnv wins, then the token stored
+// in Jin, then GITHUB_TOKEN.
+func (e *Env) GitHubToken(g *clusters.GitOps) (token, source string) {
+	if g != nil && g.TokenEnv != "" {
+		return os.Getenv(g.TokenEnv), "env:" + g.TokenEnv
+	}
+	if e.Secrets != nil {
+		if t, err := e.Secrets.Get(GitHubSecret); err == nil && t != "" {
+			return t, "jin"
+		}
+	}
+	return os.Getenv("GITHUB_TOKEN"), "env:GITHUB_TOKEN"
 }
 
 func (e *Env) loadingRules() *clientcmd.ClientConfigLoadingRules {
@@ -89,13 +113,33 @@ func (e *Env) loadingRules() *clientcmd.ClientConfigLoadingRules {
 	return rules
 }
 
-// Contexts lists kubeconfig contexts. Credentials are never returned.
+// Contexts lists kubeconfig contexts and clusters added in Jin. Credentials are never returned.
 func (e *Env) Contexts() ([]Context, error) {
 	raw, err := e.loadingRules().Load()
+	if errors.Is(err, os.ErrNotExist) {
+		// No kubeconfig is fine when clusters are added in Jin.
+		raw, err = clientcmdapi.NewConfig(), nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("load kubeconfig: %w", err)
 	}
 	out := make([]Context, 0, len(raw.Contexts))
+	if e.Settings != nil {
+		regs, err := e.Settings.Registrations()
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range regs {
+			ref := r.EKS
+			c := Context{Name: r.Context, Cluster: r.Endpoint, Registered: true,
+				EKS: &EKSCluster{Name: ref.Name, Region: ref.Region, Profile: ref.Profile, RoleARN: ref.RoleARN}}
+			if st, err := e.Settings.Get(r.Context); err == nil {
+				c.Environment = st.Environment
+				c.GitOps = st.GitOps != nil && len(st.GitOps.Targets) > 0
+			}
+			out = append(out, c)
+		}
+	}
 	for name, c := range raw.Contexts {
 		ctx := Context{Name: name, Cluster: c.Cluster, Current: name == raw.CurrentContext, EKS: eksFromKubeconfig(raw, name)}
 		if p, l, n, err := gkeexec.ParseContext(name); err == nil {
@@ -121,6 +165,21 @@ func (e *Env) Contexts() ([]Context, error) {
 
 // Connect builds clients for a context; an empty name means the current context.
 func (e *Env) Connect(contextName string) (*Clients, error) {
+	if e.Settings != nil && contextName != "" {
+		if reg, ok := e.Settings.Registration(contextName); ok {
+			cfg, err := registeredRESTConfig(context.Background(), reg)
+			if err != nil {
+				return nil, err
+			}
+			c, err := clientsFor(reg.Context, cfg)
+			if err != nil {
+				return nil, err
+			}
+			ref := reg.EKS
+			c.EKS = &EKSCluster{Name: ref.Name, Region: ref.Region, Profile: ref.Profile, RoleARN: ref.RoleARN}
+			return c, nil
+		}
+	}
 	cc := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(e.loadingRules(), &clientcmd.ConfigOverrides{CurrentContext: contextName})
 	raw, err := cc.RawConfig()
 	if err != nil {
@@ -140,6 +199,15 @@ func (e *Env) Connect(contextName string) (*Clients, error) {
 	cfg.UserAgent = "jin/" + buildinfo.Version
 	cfg.QPS = 20
 	cfg.Burst = 40
+	c, err := clientsFor(name, cfg)
+	if err != nil {
+		return nil, err
+	}
+	c.EKS = eksFromKubeconfig(&raw, name)
+	return c, nil
+}
+
+func clientsFor(name string, cfg *rest.Config) (*Clients, error) {
 	cs, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		return nil, err
@@ -152,7 +220,7 @@ func (e *Env) Connect(contextName string) (*Clients, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Clients{Context: name, Config: cfg, Kube: cs, Metadata: md, Dynamic: dyn, EKS: eksFromKubeconfig(&raw, name)}, nil
+	return &Clients{Context: name, Config: cfg, Kube: cs, Metadata: md, Dynamic: dyn}, nil
 }
 
 type PlanOptions struct {

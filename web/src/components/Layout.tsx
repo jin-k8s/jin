@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { NavLink } from 'react-router'
-import { ArrowLeftRight, Boxes, FileSearch, LayoutDashboard, LogOut, Plane, Rocket, ShieldCheck } from 'lucide-react'
+import { ArrowLeftRight, Boxes, FileSearch, LayoutDashboard, LogOut, Plane, Plug, Rocket, ShieldCheck } from 'lucide-react'
 import { api } from '../api'
 import { useSession } from '../session'
 import { Logo, cx } from './ui'
@@ -14,6 +14,7 @@ const nav = [
   { to: '/compare', label: 'Blue/green', icon: ArrowLeftRight },
   { to: '/migrate', label: 'Migrate', icon: Plane },
   { to: '/governance', label: 'Governance', icon: ShieldCheck },
+  { to: '/integrations', label: 'Integrations', icon: Plug },
 ]
 
 export function Layout({ info, children }: { info?: Info; children: ReactNode }) {

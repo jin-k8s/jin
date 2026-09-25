@@ -10,6 +10,8 @@ changes nothing in the cloud: your pipeline applies the merged pull requests.
 - The support calendar (plans) additionally needs `eks:DescribeClusterVersions` on `*`.
 
 Jin uses the same profile, region and role as the kubeconfig's `aws eks get-token` exec plugin.
+To **add clusters from the UI**, the identity also needs `eks:ListClusters` (`*`) and `eks:DescribeCluster`,
+plus an EKS access entry on each cluster (the UI prints the exact commands if it is missing).
 
 ## Google GKE
 
@@ -46,6 +48,6 @@ AKS clusters also need their subscription, resource group and name in the Jin cl
 ## GitHub (GitOps mode)
 
 Use a fine-grained token (or a GitHub App installation token) limited to the infrastructure
-repository with **Contents: read and write** and **Pull requests: read and write**. Put it in
-`GITHUB_TOKEN` (or another `GITHUB_*` / `JIN_GITHUB_*` variable) in the Jin server's environment.
-Tokens are never written to disk.
+repository with **Contents: read and write** and **Pull requests: read and write**. Add it under
+**Integrations** in the UI (stored encrypted), or put it in `GITHUB_TOKEN` (or another `GITHUB_*` /
+`JIN_GITHUB_*` variable) in the Jin server's environment.

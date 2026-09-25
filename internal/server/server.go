@@ -44,6 +44,8 @@ type Config struct {
 	// UI overrides the embedded assets (tests).
 	UI  fs.FS
 	Now func() time.Time
+	// GitHubAPI is where stored tokens are validated. Defaults to https://api.github.com.
+	GitHubAPI string
 }
 
 type Server struct {
@@ -64,6 +66,9 @@ func New(cfg Config) (*Server, error) {
 	}
 	if cfg.Now == nil {
 		cfg.Now = time.Now
+	}
+	if cfg.GitHubAPI == "" {
+		cfg.GitHubAPI = "https://api.github.com"
 	}
 	ui := cfg.UI
 	if ui == nil {
@@ -106,6 +111,14 @@ func (s *Server) Handler() http.Handler {
 	r("POST /api/v1/upgrades/{id}/approve", approver, s.approve)
 	r("POST /api/v1/upgrades/{id}/retry", approver, s.retry)
 	r("POST /api/v1/upgrades/{id}/cancel", approver, s.cancel)
+
+	r("GET /api/v1/integrations/github", admin, s.getGitHubIntegration)
+	r("PUT /api/v1/integrations/github", admin, s.putGitHubIntegration)
+	r("DELETE /api/v1/integrations/github", admin, s.deleteGitHubIntegration)
+	r("GET /api/v1/aws/profiles", admin, s.awsProfiles)
+	r("GET /api/v1/aws/eks-clusters", admin, s.eksClusters)
+	r("POST /api/v1/clusters", admin, s.addCluster)
+	r("DELETE /api/v1/clusters", admin, s.removeCluster)
 
 	r("PUT /api/v1/settings", admin, s.putSettings)
 	r("POST /api/v1/settings/discover", admin, s.discover)

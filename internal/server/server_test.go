@@ -33,6 +33,7 @@ import (
 	"github.com/jin-k8s/jin/internal/policy"
 	"github.com/jin-k8s/jin/internal/provider"
 	"github.com/jin-k8s/jin/internal/runrecord"
+	"github.com/jin-k8s/jin/internal/secrets"
 	"github.com/jin-k8s/jin/internal/upgrade"
 )
 
@@ -110,7 +111,20 @@ func setup(t *testing.T, cfg *config.Config) *fixture {
 
 	settings := clusters.NewStore(filepath.Join(dir, "clusters.json"))
 	_ = settings.Put(&clusters.Settings{Context: rec.Cluster.Context, Environment: "prod"})
-	env := &app.Env{Kubeconfig: kc, Runs: runs, Settings: settings}
+	sec, err := secrets.Open(filepath.Join(dir, "secrets.json"), filepath.Join(dir, "secrets.key"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := &app.Env{Kubeconfig: kc, Runs: runs, Settings: settings, Secrets: sec}
+	gh := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/user" || r.Header.Get("Authorization") != "Bearer github_pat_valid_0123456789abcdef" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("X-OAuth-Scopes", "repo")
+		_, _ = w.Write([]byte(`{"login":"Debashbora"}`))
+	}))
+	t.Cleanup(gh.Close)
 
 	fc := &fakeCluster{version: kube.MustParseVersion("1.30")}
 	engine := upgrade.NewEngine(upgrade.NewStore(filepath.Join(dir, "upgrades")), func(_ context.Context, u *upgrade.Upgrade) (upgrade.Cluster, error) {
@@ -135,7 +149,7 @@ func setup(t *testing.T, cfg *config.Config) *fixture {
 		t.Fatal(err)
 	}
 	s, err := New(Config{
-		Env: env, Engine: engine, Auth: authn, Cfg: cfg, Audit: al, LoopbackOnly: true,
+		Env: env, Engine: engine, Auth: authn, Cfg: cfg, Audit: al, LoopbackOnly: true, GitHubAPI: gh.URL,
 		UI: fstest.MapFS{"index.html": {Data: []byte("<html>jin-ui</html>")}, "assets/app.js": {Data: []byte("console.log(1)")}},
 	})
 	if err != nil {
@@ -481,4 +495,41 @@ func rebuild(t *testing.T, cfg *config.Config) *fixture {
 	h = f.srv.Config.Handler
 	f.srv = ts
 	return f
+}
+
+func TestGitHubTokenIntegration(t *testing.T) {
+	f := setup(t, nil)
+	c := http.DefaultClient
+	if resp, body := f.do(t, c, "PUT", "/api/v1/integrations/github", `{"token":"github_pat_wrong_0123456789abcdef"}`, bearer); resp.StatusCode != http.StatusBadRequest || !strings.Contains(body, "rejected") {
+		t.Fatalf("invalid token must be refused: %d %s", resp.StatusCode, body)
+	}
+	resp, body := f.do(t, c, "PUT", "/api/v1/integrations/github", `{"token":" github_pat_valid_0123456789abcdef "}`, bearer)
+	if resp.StatusCode != http.StatusOK || !strings.Contains(body, `"login":"Debashbora"`) {
+		t.Fatalf("store token: %d %s", resp.StatusCode, body)
+	}
+	_, body = f.do(t, c, "GET", "/api/v1/integrations/github", "", bearer)
+	if strings.Contains(body, "valid_0123") || !strings.Contains(body, `"hint":"…cdef"`) || !strings.Contains(body, `"source":"jin"`) {
+		t.Fatalf("status must never return the token: %s", body)
+	}
+	b, _ := os.ReadFile(filepath.Join(f.dir, "audit.jsonl"))
+	if strings.Contains(string(b), "valid_0123") || !strings.Contains(string(b), "integration.github.set") {
+		t.Fatalf("audit must record the change without the token:\n%s", b)
+	}
+	b, _ = os.ReadFile(filepath.Join(f.dir, "secrets.json"))
+	if strings.Contains(string(b), "valid_0123") {
+		t.Fatal("token stored in plaintext")
+	}
+
+	if resp, _ := f.do(t, c, "DELETE", "/api/v1/integrations/github", "", bearer); resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("delete: %d", resp.StatusCode)
+	}
+	if _, body := f.do(t, c, "GET", "/api/v1/integrations/github", "", bearer); !strings.Contains(body, `"configured":false`) {
+		t.Fatalf("after delete: %s", body)
+	}
+	if resp, _ := f.do(t, c, "POST", "/api/v1/clusters", `{"provider":"gke","name":"x","region":"us-east1"}`, bearer); resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("non-EKS add must be refused: %d", resp.StatusCode)
+	}
+	if resp, body := f.do(t, c, "GET", "/api/v1/aws/eks-clusters?region=not-a-region", "", bearer); resp.StatusCode != http.StatusBadGateway || !strings.Contains(body, "invalid AWS region") {
+		t.Fatalf("region validation: %d %s", resp.StatusCode, body)
+	}
 }

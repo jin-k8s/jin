@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { Boxes, FileSearch, RefreshCw, Settings2, X } from 'lucide-react'
+import { Boxes, FileSearch, Plus, RefreshCw, Settings2, X } from 'lucide-react'
+import { AddClusterDialog } from '../components/AddClusterDialog'
 import { api, useResource } from '../api'
 import { Button, Card, Empty, EnvBadge, ErrorBox, PageHeader, Pill, ProviderBadge, Spinner, StatusBadge, cx, inputCls } from '../components/ui'
 import { timeAgo } from '../format'
@@ -94,6 +95,7 @@ export function Fleet() {
   const [refresh, setRefresh] = useState(0)
   const fleet = useResource(() => api.fleet(refresh > 0), [refresh], 60000)
   const [planning, setPlanning] = useState<FleetRow>()
+  const [adding, setAdding] = useState(false)
   const rows = fleet.data ?? []
   const extended = rows.filter((r) => r.lastPlan?.support?.currentStatus === 'extended-support')
   const surcharge = extended.reduce((a, r) => a + (r.lastPlan?.support?.currentSurchargePerYearUsd ?? 0), 0)
@@ -102,11 +104,18 @@ export function Fleet() {
     <>
       <PageHeader
         title="Fleet"
-        subtitle="Every cluster in your kubeconfig: live version, support window, last plan and active upgrade."
+        subtitle="Clusters added in Jin and from your kubeconfig: live version, support window, last plan and active upgrade."
         actions={
-          <Button onClick={() => setRefresh((n) => n + 1)} loading={fleet.loading && !!fleet.data} icon={<RefreshCw className="size-4" />}>
-            Refresh
-          </Button>
+          <>
+            <Button onClick={() => setRefresh((n) => n + 1)} loading={fleet.loading && !!fleet.data} icon={<RefreshCw className="size-4" />}>
+              Refresh
+            </Button>
+            {can('admin') && (
+              <Button variant="primary" onClick={() => setAdding(true)} icon={<Plus className="size-4" />}>
+                Add cluster
+              </Button>
+            )}
+          </>
         }
       />
       {surcharge > 0 && (
@@ -125,9 +134,9 @@ export function Fleet() {
           </div>
         )}
         {fleet.data?.length === 0 && (
-          <Empty icon={<Boxes className="size-5" />} title="No kubeconfig contexts found">
-            Add one with <code className="font-mono">aws eks update-kubeconfig</code>, <code className="font-mono">gcloud container clusters get-credentials</code>{' '}
-            or <code className="font-mono">az aks get-credentials</code>.
+          <Empty icon={<Boxes className="size-5" />} title="No clusters yet">
+            Use <b>Add cluster</b> for EKS, or add a kubeconfig context with <code className="font-mono">gcloud container clusters get-credentials</code> or{' '}
+            <code className="font-mono">az aks get-credentials</code>.
           </Empty>
         )}
         {rows.length > 0 && (
@@ -152,6 +161,7 @@ export function Fleet() {
                         <ProviderBadge provider={r.provider} />
                         <EnvBadge env={r.environment} />
                         {r.gitops && <Pill>GitOps</Pill>}
+                        {r.registered && <Pill>added in Jin</Pill>}
                         {r.current && <Pill className="bg-brand/10 text-brand">current</Pill>}
                       </div>
                       <div className="mt-0.5 truncate font-mono text-xs text-muted" title={r.name}>
@@ -219,6 +229,7 @@ export function Fleet() {
         )}
       </Card>
       {planning && <PlanDialog ctx={planning} onClose={() => setPlanning(undefined)} />}
+      {adding && <AddClusterDialog onClose={() => setAdding(false)} onAdded={() => setRefresh((n) => n + 1)} />}
     </>
   )
 }
