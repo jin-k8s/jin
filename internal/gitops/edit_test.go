@@ -147,6 +147,10 @@ func TestDiscover(t *testing.T) {
 	if c := got["infra/eks.tf: aws_eks_addon.coredns.addon_version"]; c.Target.Name != "coredns" || c.Target.Role != RoleAddon {
 		t.Errorf("addon: %+v", c)
 	}
+	// cluster_name = module.eks.cluster_name resolves to the module's literal name.
+	if c := got["infra/eks.tf: aws_eks_addon.coredns.addon_version"]; c.Cluster != "payments-prod" {
+		t.Errorf("addon cluster via module reference: %q", c.Cluster)
+	}
 	if c := got["gke/expr.tf: google_container_node_pool.np.version"]; c.Error == "" {
 		t.Errorf("expression candidates must carry an error: %+v", c)
 	}

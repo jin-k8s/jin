@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"gopkg.in/yaml.v3"
 )
@@ -226,6 +227,7 @@ func discoverTerraform(ws Workspace, file string) []Candidate {
 	if err != nil {
 		return nil
 	}
+	clusters := clusterNames(f.Body())
 	var out []Candidate
 	add := func(t Target, provider string, body *hclwrite.Body, nameAttrs ...string) {
 		c := Candidate{Target: t, Provider: provider}
@@ -236,7 +238,13 @@ func discoverTerraform(ws Workspace, file string) []Candidate {
 		}
 		for _, na := range nameAttrs {
 			if a := body.GetAttribute(na); a != nil {
-				if s, ok := literalString(a.Expr().BuildTokens(nil)); ok && s != "" {
+				toks := a.Expr().BuildTokens(nil)
+				if s, ok := literalString(toks); ok && s != "" {
+					c.Cluster = s
+					break
+				}
+				// module.eks.cluster_name, aws_eks_cluster.this.name: the cluster block in this file.
+				if s := clusters[blockRef(toks)]; s != "" {
 					c.Cluster = s
 					break
 				}
@@ -285,6 +293,57 @@ func discoverTerraform(ws Workspace, file string) []Candidate {
 		}
 	}
 	return out
+}
+
+// clusterNames maps control-plane blocks in a file ("module.eks", "aws_eks_cluster.this") to their
+// literal cluster names, so node groups and add-ons that reference them can be matched too.
+func clusterNames(body *hclwrite.Body) map[string]string {
+	out := map[string]string{}
+	name := func(b *hclwrite.Body, attrs ...string) string {
+		for _, a := range attrs {
+			if at := b.GetAttribute(a); at != nil {
+				if s, ok := literalString(at.Expr().BuildTokens(nil)); ok && s != "" {
+					return s
+				}
+			}
+		}
+		return ""
+	}
+	for _, b := range body.Blocks() {
+		switch {
+		case b.Type() == "resource" && len(b.Labels()) == 2:
+			if p, ok := tfResources[b.Labels()[0]]; ok && p.role == RoleControlPlane {
+				if n := name(b.Body(), p.nameAttr); n != "" {
+					out[b.Labels()[0]+"."+b.Labels()[1]] = n
+				}
+			}
+		case b.Type() == "module" && len(b.Labels()) == 1:
+			src := b.Body().GetAttribute("source")
+			if src == nil {
+				continue
+			}
+			s, _ := literalString(src.Expr().BuildTokens(nil))
+			for _, m := range tfModules {
+				if m.role == RoleControlPlane && strings.HasPrefix(strings.TrimPrefix(s, "registry.terraform.io/"), m.source) {
+					if n := name(b.Body(), m.nameAttrs...); n != "" {
+						out["module."+b.Labels()[0]] = n
+					}
+					break
+				}
+			}
+		}
+	}
+	return out
+}
+
+// blockRef returns "a.b" for a three-part traversal a.b.c, e.g. module.eks.cluster_name.
+func blockRef(toks hclwrite.Tokens) string {
+	t := significant(toks)
+	if len(t) == 5 && t[0].Type == hclsyntax.TokenIdent && t[1].Type == hclsyntax.TokenDot && t[2].Type == hclsyntax.TokenIdent &&
+		t[3].Type == hclsyntax.TokenDot && t[4].Type == hclsyntax.TokenIdent {
+		return string(t[0].Bytes) + "." + string(t[2].Bytes)
+	}
+	return ""
 }
 
 func discoverYAML(ws Workspace, file string) []Candidate {
