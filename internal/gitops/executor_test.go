@@ -415,3 +415,13 @@ func TestGitHubAuthErrorsSurface(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestGitHubPermissionHint(t *testing.T) {
+	e := &apiError{Status: 403, Message: "Resource not accessible by personal access token", Op: "GET /git/ref/heads/main"}
+	if !strings.Contains(e.Error(), "Contents and Pull requests") {
+		t.Fatalf("403 needs a permission hint: %s", e)
+	}
+	if e := (&apiError{Status: 422, Message: "Reference already exists"}); strings.Contains(e.Error(), "permission") {
+		t.Fatalf("unrelated errors must not get the hint: %s", e)
+	}
+}

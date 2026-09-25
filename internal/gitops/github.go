@@ -104,6 +104,10 @@ func (g *GitHub) do(ctx context.Context, method, p string, body, out any) error 
 		return err
 	}
 	if resp.StatusCode == http.StatusNotFound {
+		// Missing files and branches are normal; only explain a 404 on the repository itself.
+		if p == "" || strings.HasPrefix(p, "/git/ref/") {
+			return fmt.Errorf("GitHub %s %s: %w (a private repository the token cannot access also returns 404: check the token's resource owner and repository access)", method, p, ErrNotFound)
+		}
 		return fmt.Errorf("GitHub %s %s: %w", method, p, ErrNotFound)
 	}
 	if resp.StatusCode >= 300 {
@@ -125,7 +129,14 @@ type apiError struct {
 	Op      string
 }
 
-func (e *apiError) Error() string { return fmt.Sprintf("GitHub %s: %d %s", e.Op, e.Status, e.Message) }
+func (e *apiError) Error() string {
+	msg := fmt.Sprintf("GitHub %s: %d %s", e.Op, e.Status, e.Message)
+	if e.Status == http.StatusForbidden && strings.Contains(e.Message, "not accessible by") {
+		msg += ". The token can see the repository but lacks a permission: a fine-grained token needs " +
+			"Contents and Pull requests set to Read and write for this repository (an organization may also have to approve it)"
+	}
+	return msg
+}
 
 func (g *GitHub) DefaultBranch(ctx context.Context) (string, error) {
 	var r struct {
