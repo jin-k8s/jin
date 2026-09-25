@@ -265,7 +265,17 @@ export function PlanDetail() {
             <div>
               <h2 className="mb-2 text-sm font-semibold">How should Jin run this upgrade?</h2>
               <ModePicker mode={mode} setMode={setChosen} ctx={ctx} />
-              <p className="mt-2 text-xs text-muted">Either way, every hop waits for approval under the cluster's policy.</p>
+              <p className="mt-2 text-xs text-muted">
+                Either way, every hop waits for approval under the cluster's policy.
+                {avail.gitops !== null && can('admin') && (
+                  <>
+                    {' '}
+                    <Link to={`/clusters/settings?context=${encodeURIComponent(r.cluster.context)}`} className="font-medium text-brand hover:underline">
+                      Set up GitOps for this cluster →
+                    </Link>
+                  </>
+                )}
+              </p>
             </div>
           )}
           {startError && <ErrorBox error={startError} title="Could not start the upgrade" />}
