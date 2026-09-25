@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="380" viewBox="0 0 1200 380" role="img" aria-label="Jin — know what breaks before you upgrade or migrate Kubernetes. Read-only inventory, plans you review in a PR.">
+  <defs>
+    <linearGradient id="jl-panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F1F5F9"/>
+    </linearGradient>
+    <linearGradient id="jl-edge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0F172A" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#0F172A" stop-opacity="0.05"/>
+    </linearGradient>
+    <linearGradient id="jl-topbar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0D9488" stop-opacity="0"/>
+      <stop offset="0.3" stop-color="#0D9488" stop-opacity="0.9"/>
+      <stop offset="0.72" stop-color="#0D9488" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#0D9488" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="jl-glowA">
+      <stop offset="0" stop-color="#14B8A6" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#14B8A6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="jl-glowB">
+      <stop offset="0" stop-color="#2563EB" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#2563EB" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="jl-grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#0F172A" stroke-opacity="0.055" stroke-width="1"/>
+    </pattern>
+    <clipPath id="jl-clip"><rect width="1200" height="380" rx="24"/></clipPath>
+    <filter id="jl-shadow" x="-10%" y="-12%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="10" stdDeviation="18" flood-color="#0F172A" flood-opacity="0.10"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="380" rx="24" fill="url(#jl-panel)"/>
+  <g clip-path="url(#jl-clip)">
+    <rect width="1200" height="380" fill="url(#jl-grid)"/>
+    <circle cx="930" cy="70" r="430" fill="url(#jl-glowA)"/>
+    <circle cx="140" cy="360" r="360" fill="url(#jl-glowB)"/>
+    <rect width="1200" height="2.5" fill="url(#jl-topbar)"/>
+  </g>
+  <rect x="0.75" y="0.75" width="1198.5" height="378.5" rx="23.25" fill="none" stroke="url(#jl-edge)" stroke-width="1.5"/>
+
+  <!-- mark: migration arc over the stepped upgrade path, landing on the target release -->
+  <path d="M72 182 Q109 53 176 78" fill="none" stroke="#0D9488" stroke-opacity="0.45" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="1.5 8"/>
+  <path d="M72 182H107V147H141V113" fill="none" stroke="#94A3B8" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M141 113H176V78" fill="none" stroke="#0D9488" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="72" cy="182" r="8" fill="#64748B"/>
+  <circle cx="176" cy="78" r="18" fill="none" stroke="#0D9488" stroke-opacity="0.28" stroke-width="2"/>
+  <circle cx="176" cy="78" r="10.5" fill="#0D9488"/>
+
+  <g font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <text x="220" y="162" fill="#0B1120" font-size="88" font-weight="800" letter-spacing="-3.5"><tspan>j</tspan><tspan dx="-3">i</tspan><tspan dx="-1">n</tspan></text>
+
+    <text x="223" y="210" fill="#0F172A" font-size="24" font-weight="700" letter-spacing="-0.4">Know what breaks</text>
+    <text x="223" y="242" fill="#0F172A" font-size="24" font-weight="700" letter-spacing="-0.4">before you upgrade or migrate.</text>
+    <text x="223" y="270" fill="#64748B" font-size="17" font-weight="500">Read-only inventory. Plans you review in a PR.</text>
+
+    <rect x="220" y="288" width="64" height="30" rx="15" fill="#F0FDFA" stroke="#5EEAD4"/>
+    <text x="252" y="308" fill="#0D9488" font-size="13" font-weight="700" letter-spacing="1.2" text-anchor="middle">EKS</text>
+    <rect x="292" y="288" width="64" height="30" rx="15" fill="#F8FAFC" stroke="#E2E8F0"/>
+    <text x="324" y="308" fill="#475569" font-size="13" font-weight="700" letter-spacing="1.2" text-anchor="middle">GKE</text>
+    <rect x="364" y="288" width="64" height="30" rx="15" fill="#F8FAFC" stroke="#E2E8F0"/>
+    <text x="396" y="308" fill="#475569" font-size="13" font-weight="700" letter-spacing="1.2" text-anchor="middle">AKS</text>
+
+    <!-- plan card -->
+    <g filter="url(#jl-shadow)">
+      <rect x="660" y="60" width="468" height="260" rx="16" fill="#FFFFFF" stroke="#E2E8F0"/>
+    </g>
+
+    <text x="688" y="104" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" fill="#94A3B8">$</text>
+    <text x="706" y="104" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" font-weight="500" fill="#0F172A">jin plan --to 1.33</text>
+    <text x="1100" y="104" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" fill="#94A3B8" text-anchor="end">prod-use1</text>
+    <line x1="688" y1="128" x2="1100" y2="128" stroke="#E2E8F0"/>
+
+    <line x1="716" y1="188" x2="956" y2="188" stroke="#CBD5E1" stroke-width="2.5"/>
+    <line x1="956" y1="188" x2="1076" y2="188" stroke="#0D9488" stroke-width="2.5"/>
+    <circle cx="716" cy="188" r="5.5" fill="#CBD5E1"/>
+    <circle cx="836" cy="188" r="5.5" fill="#94A3B8"/>
+    <circle cx="956" cy="188" r="5.5" fill="#64748B"/>
+    <circle cx="1076" cy="188" r="15" fill="none" stroke="#0D9488" stroke-opacity="0.28" stroke-width="2"/>
+    <circle cx="1076" cy="188" r="8" fill="#0D9488"/>
+
+    <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" text-anchor="middle">
+      <text x="716" y="216" fill="#94A3B8">1.30</text>
+      <text x="836" y="216" fill="#64748B">1.31</text>
+      <text x="956" y="216" fill="#334155">1.32</text>
+      <text x="1076" y="216" fill="#0D9488" font-weight="600">1.33</text>
+    </g>
+    <text x="716" y="236" font-size="12" font-weight="700" letter-spacing="1.1" fill="#94A3B8" text-anchor="middle">EKS</text>
+    <text x="1076" y="236" font-size="12" font-weight="700" letter-spacing="1.1" fill="#0D9488" text-anchor="middle">GKE</text>
+
+    <line x1="688" y1="264" x2="1100" y2="264" stroke="#E2E8F0"/>
+    <path d="M689 293l4.5 4.5 8-10" fill="none" stroke="#0D9488" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="710" y="299" font-size="15" fill="#334155">3 hops · 14 checks passed</text>
+    <circle cx="936" cy="293" r="4.5" fill="#D97706"/>
+    <text x="950" y="299" font-size="15" fill="#334155">2 removed APIs</text>
+  </g>
+</svg>

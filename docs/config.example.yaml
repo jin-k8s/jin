@@ -1,0 +1,47 @@
+# $JIN_HOME/config.yaml (default ~/.jin/config.yaml). Every section is optional; without this file
+# Jin runs single-user with token sign-in as admin.
+
+auth:
+  oidc:
+    issuer: https://accounts.google.com            # any OpenID Connect provider (Okta, Entra ID, Keycloak, Dex…)
+    clientID: 1234567890-abc.apps.googleusercontent.com
+    clientSecretEnv: JIN_OIDC_CLIENT_SECRET          # the secret itself stays in the environment
+    redirectURL: https://jin.example.com/auth/callback
+    groupsClaim: groups
+    scopes: [openid, email, profile]
+    allowedDomains: [example.com]
+  # Turn off the bootstrap token once SSO works.
+  disableTokenLogin: false
+  sessionHours: 12
+
+rbac:
+  defaultRole: viewer                                # signed-in users without a binding
+  bindings:
+    - role: admin
+      subjects: ["group:platform-admins"]
+    - role: approver
+      subjects: ["group:sre"]
+    - role: planner
+      subjects: ["group:developers", "user:release-bot@example.com"]
+
+# Evaluated top to bottom; the first match applies. Unmatched clusters need one approval.
+policies:
+  - name: production
+    match:
+      environments: [prod]                           # set per cluster in Fleet → settings
+    minApprovals: 2
+    forbidSelfApproval: true
+    requireComment: true                             # e.g. a change ticket
+    requiredGroups: [sre]
+    windows:
+      - days: [Tue, Wed, Thu]
+        start: "10:00"
+        end: "16:00"
+        timezone: Asia/Kolkata
+  - name: staging
+    match:
+      contexts: ["*staging*"]
+    minApprovals: 1
+
+github:
+  enterpriseHosts: []                                # e.g. [ghe.example.com]; api.github.com is always allowed

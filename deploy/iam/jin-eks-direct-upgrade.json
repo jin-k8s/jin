@@ -1,0 +1,43 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadClusterAndUpdates",
+      "Effect": "Allow",
+      "Action": [
+        "eks:DescribeCluster",
+        "eks:DescribeUpdate",
+        "eks:ListUpdates",
+        "eks:ListAddons",
+        "eks:DescribeAddon",
+        "eks:ListNodegroups",
+        "eks:DescribeNodegroup"
+      ],
+      "Resource": [
+        "arn:aws:eks:REGION:ACCOUNT_ID:cluster/CLUSTER_NAME",
+        "arn:aws:eks:REGION:ACCOUNT_ID:nodegroup/CLUSTER_NAME/*/*",
+        "arn:aws:eks:REGION:ACCOUNT_ID:addon/CLUSTER_NAME/*/*"
+      ]
+    },
+    {
+      "Sid": "UpgradeClusterNodegroupsAddons",
+      "Effect": "Allow",
+      "Action": [
+        "eks:UpdateClusterVersion",
+        "eks:UpdateNodegroupVersion",
+        "eks:UpdateAddon"
+      ],
+      "Resource": [
+        "arn:aws:eks:REGION:ACCOUNT_ID:cluster/CLUSTER_NAME",
+        "arn:aws:eks:REGION:ACCOUNT_ID:nodegroup/CLUSTER_NAME/*/*",
+        "arn:aws:eks:REGION:ACCOUNT_ID:addon/CLUSTER_NAME/*/*"
+      ]
+    },
+    {
+      "Sid": "AddonCatalogIsNotResourceScoped",
+      "Effect": "Allow",
+      "Action": ["eks:DescribeAddonVersions"],
+      "Resource": "*"
+    }
+  ]
+}
