@@ -127,7 +127,14 @@ func runServer(cmd *cobra.Command, g *globalOptions, o *serverOptions) error {
 	if authn.SSOEnabled() {
 		fmt.Fprintf(out, "  SSO:       %s\n", cfg.Auth.OIDC.Issuer)
 	}
-	fmt.Fprintf(out, "  Policies:  %d approval polic(ies) from config.yaml\n", len(cfg.Policies))
+	switch n := len(cfg.Policies); n {
+	case 0:
+		fmt.Fprintf(out, "  Policies:  none (one approval per hop); configure in %s\n", filepath.Join(home, "config.yaml"))
+	case 1:
+		fmt.Fprintf(out, "  Policies:  1 approval policy from config.yaml\n")
+	default:
+		fmt.Fprintf(out, "  Policies:  %d approval policies from config.yaml\n", n)
+	}
 	fmt.Fprintf(out, "  Data:      %s\n\n", home)
 	if !loopback {
 		fmt.Fprintf(out, "  WARNING: listening on a non-loopback address. The API can change clusters;\n"+
