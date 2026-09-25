@@ -276,7 +276,7 @@ func (c *Collector) collectLastApplied(ctx context.Context, inv *Inventory) erro
 	if c.Metadata == nil {
 		return errors.New("metadata client unavailable")
 	}
-	_, lists, err := c.Client.Discovery().ServerGroupsAndResources()
+	groups, lists, err := c.Client.Discovery().ServerGroupsAndResources()
 	if err != nil {
 		if !discovery.IsGroupDiscoveryFailedError(err) || lists == nil {
 			return err
@@ -284,25 +284,42 @@ func (c *Collector) collectLastApplied(ctx context.Context, inv *Inventory) erro
 		inv.Warnings = append(inv.Warnings, fmt.Sprintf("API discovery partially failed: %v", err))
 	}
 
+	// List through each group's preferred version. Listing through a deprecated version would
+	// itself show up in apiserver_requested_deprecated_apis, the metric Jin reports on, and the
+	// annotation is the same whichever version serves the object. Non-preferred versions are
+	// used only for resources the preferred version does not serve.
+	preferred := map[string]string{}
+	for _, g := range groups {
+		if g != nil {
+			preferred[g.Name] = g.PreferredVersion.GroupVersion
+		}
+	}
+	isPreferred := func(gv schema.GroupVersion) bool {
+		p, ok := preferred[gv.Group]
+		return !ok || p == gv.String()
+	}
+
 	kinds := c.KB.RemovedKinds()
 	seen := map[string]bool{}
 	var gvrs []schema.GroupVersionResource
-	for _, l := range lists {
-		gv, err := schema.ParseGroupVersion(l.GroupVersion)
-		if err != nil {
-			continue
-		}
-		for _, r := range l.APIResources {
-			// Events are high-volume and never declared in manifests.
-			if strings.Contains(r.Name, "/") || !kinds[r.Kind] || r.Kind == "Event" || !slices.Contains(r.Verbs, "list") {
+	for _, pass := range []bool{true, false} {
+		for _, l := range lists {
+			gv, err := schema.ParseGroupVersion(l.GroupVersion)
+			if err != nil || isPreferred(gv) != pass {
 				continue
 			}
-			key := gv.Group + "/" + r.Name
-			if seen[key] {
-				continue
+			for _, r := range l.APIResources {
+				// Events are high-volume and never declared in manifests.
+				if strings.Contains(r.Name, "/") || !kinds[r.Kind] || r.Kind == "Event" || !slices.Contains(r.Verbs, "list") {
+					continue
+				}
+				key := gv.Group + "/" + r.Name
+				if seen[key] {
+					continue
+				}
+				seen[key] = true
+				gvrs = append(gvrs, gv.WithResource(r.Name))
 			}
-			seen[key] = true
-			gvrs = append(gvrs, gv.WithResource(r.Name))
 		}
 	}
 	sort.Slice(gvrs, func(i, j int) bool { return gvrs[i].String() < gvrs[j].String() })
