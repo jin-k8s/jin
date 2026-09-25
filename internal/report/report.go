@@ -10,6 +10,7 @@ import (
 	"github.com/jin-k8s/jin/internal/check"
 	"github.com/jin-k8s/jin/internal/plan"
 	"github.com/jin-k8s/jin/internal/runrecord"
+	"github.com/jin-k8s/jin/internal/support"
 )
 
 const (
@@ -138,7 +139,13 @@ func supportLine(p *plan.Plan) string {
 	default:
 		s = fmt.Sprintf("%s: %s", a.Current, a.CurrentStatus)
 	}
-	if a.TargetEndOfStandard != nil {
+	switch {
+	case a.TargetStatus == support.StatusExtended:
+		s += fmt.Sprintf("; %s is also in extended support", a.Target)
+		if a.FirstStandard != nil {
+			s += fmt.Sprintf(" (standard pricing from %s)", *a.FirstStandard)
+		}
+	case a.TargetEndOfStandard != nil:
 		s += fmt.Sprintf("; %s supported until %s", a.Target, a.TargetEndOfStandard.UTC().Format("2006-01-02"))
 	}
 	return s

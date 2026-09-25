@@ -182,7 +182,9 @@ export interface SupportAssessment {
   extendedSupportCostPerYearUsd: number
   currentSurchargePerYearUsd: number
   target: string
+  targetStatus?: string
   targetEndOfStandardSupport?: string
+  firstStandardVersion?: string
   pricingSource: string
 }
 

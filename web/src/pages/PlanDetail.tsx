@@ -150,7 +150,9 @@ function SupportCard({ s }: { s: SupportAssessment }) {
           </div>
           <div className="mt-0.5 text-sm text-muted">
             Standard support ends {d(s.endOfStandardSupport)} · extended support ends {d(s.endOfExtendedSupport)}
-            {s.targetEndOfStandardSupport && ` · ${s.target} is supported until ${d(s.targetEndOfStandardSupport)}`}
+            {s.targetStatus === 'extended-support'
+              ? ` · ${s.target} is also in extended support${s.firstStandardVersion ? `; standard pricing from ${s.firstStandardVersion}` : ''}`
+              : s.targetEndOfStandardSupport && ` · ${s.target} is supported until ${d(s.targetEndOfStandardSupport)}`}
           </div>
         </div>
         {s.extendedSupportCostPerYearUsd > 0 && (

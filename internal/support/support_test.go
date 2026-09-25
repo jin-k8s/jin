@@ -37,7 +37,7 @@ func TestEKSCalendarAndAssess(t *testing.T) {
 	f := &fakeEKS{pages: [][]types.ClusterVersionInformation{
 		{{ClusterVersion: aws.String("1.31"), Status: types.ClusterVersionStatusStandardSupport, EndOfStandardSupportDate: date("2026-11-26"), EndOfExtendedSupportDate: date("2027-11-26")}},
 		{{ClusterVersion: aws.String("1.29"), Status: types.ClusterVersionStatusExtendedSupport, EndOfStandardSupportDate: date("2025-03-23"), EndOfExtendedSupportDate: date("2026-03-23")},
-			{ClusterVersion: aws.String("1.30"), Status: types.ClusterVersionStatusExtendedSupport, EndOfStandardSupportDate: date("2025-07-23"), EndOfExtendedSupportDate: date("2026-12-01")}},
+			{ClusterVersion: aws.String("1.30"), Status: "EXTENDED_SUPPORT", VersionStatus: types.VersionStatusExtendedSupport, EndOfStandardSupportDate: date("2025-07-23"), EndOfExtendedSupportDate: date("2026-12-01")}},
 	}}
 	now := time.Date(2026, 9, 24, 0, 0, 0, 0, time.UTC)
 	cal, err := EKSCalendar(context.Background(), f, now)
@@ -54,6 +54,14 @@ func TestEKSCalendarAndAssess(t *testing.T) {
 	}
 	if a.TargetEndOfStandard == nil || a.TargetEndOfStandard.Format("2006-01-02") != "2026-11-26" {
 		t.Fatalf("target window: %+v", a.TargetEndOfStandard)
+	}
+
+	c := Assess(cal, kube.MustParseVersion("1.29"), kube.MustParseVersion("1.30"), now)
+	if c.TargetStatus != StatusExtended || c.FirstStandard == nil || *c.FirstStandard != kube.MustParseVersion("1.31") {
+		t.Fatalf("target in extended support must name the first standard version: %+v", c)
+	}
+	if a.FirstStandard != nil {
+		t.Fatalf("standard target needs no first-standard hint: %v", a.FirstStandard)
 	}
 
 	b := Assess(cal, kube.MustParseVersion("1.31"), kube.MustParseVersion("1.32"), now)

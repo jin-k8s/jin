@@ -35,7 +35,14 @@ func (SupportWindow) Run(in Input) []Finding {
 		if a.EndOfExtended != nil {
 			f.Detail += " Extended support ends " + day(*a.EndOfExtended) + "."
 		}
-		f.Remediation = fmt.Sprintf("Upgrading to %s returns the cluster to standard pricing.", a.Target)
+		switch {
+		case a.TargetStatus == "" || a.TargetStatus == support.StatusStandard:
+			f.Remediation = fmt.Sprintf("Upgrading to %s returns the cluster to standard pricing.", a.Target)
+		case a.FirstStandard != nil:
+			f.Remediation = fmt.Sprintf("%s is also in extended support; the cluster returns to standard pricing at %s.", a.Target, *a.FirstStandard)
+		default:
+			f.Remediation = fmt.Sprintf("%s is also in extended support.", a.Target)
+		}
 		out = append(out, f)
 	case a.DaysToEndOfStandard != nil && *a.DaysToEndOfStandard <= 90:
 		msg := fmt.Sprintf("Standard support for %s ends %s (in %d days)", a.Current, day(*a.EndOfStandard), *a.DaysToEndOfStandard)
@@ -45,7 +52,16 @@ func (SupportWindow) Run(in Input) []Finding {
 		}
 		out = append(out, f)
 	}
-	if a.TargetEndOfStandard != nil && a.TargetEndOfStandard.Sub(in.Now) < 180*24*time.Hour {
+	if a.TargetStatus == support.StatusExtended {
+		f := Finding{
+			Severity: SeverityInfo,
+			Title:    fmt.Sprintf("Target %s is already in extended support", a.Target),
+		}
+		if a.FirstStandard != nil {
+			f.Remediation = fmt.Sprintf("Plan through to %s to stop paying for extended support.", *a.FirstStandard)
+		}
+		out = append(out, f)
+	} else if a.TargetEndOfStandard != nil && a.TargetEndOfStandard.Sub(in.Now) < 180*24*time.Hour {
 		out = append(out, Finding{
 			Severity:    SeverityInfo,
 			Title:       fmt.Sprintf("Target %s leaves standard support on %s", a.Target, day(*a.TargetEndOfStandard)),

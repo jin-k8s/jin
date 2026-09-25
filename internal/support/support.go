@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -66,9 +67,12 @@ type Assessment struct {
 	// CurrentSurchargePerYearUSD is non-zero when the cluster is paying for extended support today.
 	CurrentSurchargePerYearUSD float64      `json:"currentSurchargePerYearUsd"`
 	Target                     kube.Version `json:"target"`
+	TargetStatus               string       `json:"targetStatus,omitempty"`
 	TargetEndOfStandard        *time.Time   `json:"targetEndOfStandardSupport,omitempty"`
-	PricingSource              string       `json:"pricingSource"`
-	Source                     string       `json:"source"`
+	// FirstStandard is the oldest version still in standard support (set when the target is not).
+	FirstStandard *kube.Version `json:"firstStandardVersion,omitempty"`
+	PricingSource string        `json:"pricingSource"`
+	Source        string        `json:"source"`
 }
 
 func Assess(cal *Calendar, current, target kube.Version, now time.Time) *Assessment {
@@ -92,7 +96,17 @@ func Assess(cal *Calendar, current, target kube.Version, now time.Time) *Assessm
 		}
 	}
 	if v, ok := cal.Lookup(target); ok {
+		a.TargetStatus = v.Status
 		a.TargetEndOfStandard = v.EndOfStandard
+	}
+	if a.TargetStatus != "" && a.TargetStatus != StatusStandard {
+		for _, v := range cal.Versions {
+			if v.Status == StatusStandard && target.Less(v.Version) {
+				fs := v.Version
+				a.FirstStandard = &fs
+				break
+			}
+		}
 	}
 	return a
 }
@@ -116,7 +130,7 @@ func EKSCalendar(ctx context.Context, api EKSAPI, now time.Time) (*Calendar, err
 				continue
 			}
 			cal.Versions = append(cal.Versions, Version{
-				Version: kv, Status: string(v.Status), ReleaseDate: v.ReleaseDate,
+				Version: kv, Status: eksStatus(string(v.VersionStatus), string(v.Status)), ReleaseDate: v.ReleaseDate,
 				EndOfStandard: v.EndOfStandardSupportDate, EndOfExtended: v.EndOfExtendedSupportDate,
 			})
 		}
@@ -127,4 +141,14 @@ func EKSCalendar(ctx context.Context, api EKSAPI, now time.Time) (*Calendar, err
 	}
 	sort.Slice(cal.Versions, func(i, j int) bool { return cal.Versions[i].Version.Less(cal.Versions[j].Version) })
 	return cal, nil
+}
+
+// eksStatus prefers versionStatus (STANDARD_SUPPORT) over the deprecated status field. The API
+// returns the deprecated field in the same upper-case form, not the SDK's "standard-support".
+func eksStatus(versionStatus, status string) string {
+	s := versionStatus
+	if s == "" {
+		s = status
+	}
+	return strings.ReplaceAll(strings.ToLower(s), "_", "-")
 }
