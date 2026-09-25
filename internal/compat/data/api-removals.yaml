@@ -1,0 +1,112 @@
+# Kubernetes API removals. Always quote versions: YAML reads 1.30 as the number 1.3.
+# Reviewed against the upstream deprecation guide through the 1.32 removals.
+# Removals in later releases must be added here after checking upstream.
+schemaVersion: 1
+# Highest release whose removals have been reviewed. Plans targeting a newer release get a warning.
+verifiedThrough: "1.32"
+sources:
+  - https://kubernetes.io/docs/reference/using-api/deprecation-guide/
+removals:
+  - removedIn: "1.16"
+    apis:
+      - apiVersion: extensions/v1beta1
+        kinds: [Deployment, DaemonSet, ReplicaSet]
+        replacement: apps/v1
+      - apiVersion: extensions/v1beta1
+        kinds: [NetworkPolicy]
+        replacement: networking.k8s.io/v1
+      - apiVersion: extensions/v1beta1
+        kinds: [PodSecurityPolicy]
+        replacement: policy/v1beta1
+        notes: PodSecurityPolicy was later removed entirely in 1.25.
+      - apiVersion: apps/v1beta1
+        kinds: [Deployment, StatefulSet]
+        replacement: apps/v1
+      - apiVersion: apps/v1beta2
+        kinds: [Deployment, StatefulSet, DaemonSet, ReplicaSet]
+        replacement: apps/v1
+
+  - removedIn: "1.22"
+    apis:
+      - apiVersion: admissionregistration.k8s.io/v1beta1
+        kinds: [MutatingWebhookConfiguration, ValidatingWebhookConfiguration]
+        replacement: admissionregistration.k8s.io/v1
+      - apiVersion: apiextensions.k8s.io/v1beta1
+        kinds: [CustomResourceDefinition]
+        replacement: apiextensions.k8s.io/v1
+      - apiVersion: apiregistration.k8s.io/v1beta1
+        kinds: [APIService]
+        replacement: apiregistration.k8s.io/v1
+      - apiVersion: certificates.k8s.io/v1beta1
+        kinds: [CertificateSigningRequest]
+        replacement: certificates.k8s.io/v1
+      - apiVersion: coordination.k8s.io/v1beta1
+        kinds: [Lease]
+        replacement: coordination.k8s.io/v1
+      - apiVersion: extensions/v1beta1
+        kinds: [Ingress]
+        replacement: networking.k8s.io/v1
+      - apiVersion: networking.k8s.io/v1beta1
+        kinds: [Ingress, IngressClass]
+        replacement: networking.k8s.io/v1
+      - apiVersion: rbac.authorization.k8s.io/v1beta1
+        kinds: [ClusterRole, ClusterRoleBinding, Role, RoleBinding]
+        replacement: rbac.authorization.k8s.io/v1
+      - apiVersion: scheduling.k8s.io/v1beta1
+        kinds: [PriorityClass]
+        replacement: scheduling.k8s.io/v1
+      - apiVersion: storage.k8s.io/v1beta1
+        kinds: [CSIDriver, CSINode, StorageClass, VolumeAttachment]
+        replacement: storage.k8s.io/v1
+
+  - removedIn: "1.25"
+    apis:
+      - apiVersion: batch/v1beta1
+        kinds: [CronJob]
+        replacement: batch/v1
+      - apiVersion: discovery.k8s.io/v1beta1
+        kinds: [EndpointSlice]
+        replacement: discovery.k8s.io/v1
+      - apiVersion: events.k8s.io/v1beta1
+        kinds: [Event]
+        replacement: events.k8s.io/v1
+      - apiVersion: autoscaling/v2beta1
+        kinds: [HorizontalPodAutoscaler]
+        replacement: autoscaling/v2
+      - apiVersion: policy/v1beta1
+        kinds: [PodDisruptionBudget]
+        replacement: policy/v1
+      - apiVersion: policy/v1beta1
+        kinds: [PodSecurityPolicy]
+        notes: No replacement API. Migrate to Pod Security Admission or a policy engine (Kyverno, OPA Gatekeeper).
+      - apiVersion: node.k8s.io/v1beta1
+        kinds: [RuntimeClass]
+        replacement: node.k8s.io/v1
+
+  - removedIn: "1.26"
+    apis:
+      - apiVersion: flowcontrol.apiserver.k8s.io/v1beta1
+        kinds: [FlowSchema, PriorityLevelConfiguration]
+        replacement: flowcontrol.apiserver.k8s.io/v1
+        notes: flowcontrol.apiserver.k8s.io/v1 is served from 1.29; use v1beta3 on 1.26-1.28.
+      - apiVersion: autoscaling/v2beta2
+        kinds: [HorizontalPodAutoscaler]
+        replacement: autoscaling/v2
+
+  - removedIn: "1.27"
+    apis:
+      - apiVersion: storage.k8s.io/v1beta1
+        kinds: [CSIStorageCapacity]
+        replacement: storage.k8s.io/v1
+
+  - removedIn: "1.29"
+    apis:
+      - apiVersion: flowcontrol.apiserver.k8s.io/v1beta2
+        kinds: [FlowSchema, PriorityLevelConfiguration]
+        replacement: flowcontrol.apiserver.k8s.io/v1
+
+  - removedIn: "1.32"
+    apis:
+      - apiVersion: flowcontrol.apiserver.k8s.io/v1beta3
+        kinds: [FlowSchema, PriorityLevelConfiguration]
+        replacement: flowcontrol.apiserver.k8s.io/v1

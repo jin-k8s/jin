@@ -1,0 +1,52 @@
+# Cluster add-ons Jin detects. versionPolicy "kubelet-skew" means the add-on follows the
+# upstream kubelet/kube-proxy version-skew policy. Add-ons without a policy are inventoried
+# and reported until verified compatibility data exists for them.
+schemaVersion: 1
+addons:
+  - name: kube-proxy
+    eksAddonName: kube-proxy
+    versionPolicy: kubelet-skew
+    workloads:
+      - {kind: DaemonSet, namespaces: [kube-system], names: [kube-proxy], container: kube-proxy}
+
+  - name: coredns
+    eksAddonName: coredns
+    workloads:
+      - {kind: Deployment, namespaces: [kube-system], names: [coredns], container: coredns}
+
+  - name: vpc-cni
+    eksAddonName: vpc-cni
+    workloads:
+      - {kind: DaemonSet, namespaces: [kube-system], names: [aws-node], container: aws-node}
+
+  - name: aws-ebs-csi-driver
+    eksAddonName: aws-ebs-csi-driver
+    workloads:
+      - {kind: Deployment, namespaces: [kube-system], names: [ebs-csi-controller], container: ebs-plugin}
+
+  - name: aws-efs-csi-driver
+    eksAddonName: aws-efs-csi-driver
+    workloads:
+      - {kind: Deployment, namespaces: [kube-system], names: [efs-csi-controller], container: efs-plugin}
+
+  - name: aws-load-balancer-controller
+    workloads:
+      - {kind: Deployment, namespaces: [kube-system], names: [aws-load-balancer-controller]}
+
+  - name: karpenter
+    workloads:
+      - {kind: Deployment, namespaces: [karpenter, kube-system], names: [karpenter], container: controller}
+
+  - name: cluster-autoscaler
+    workloads:
+      - kind: Deployment
+        namespaces: [kube-system]
+        names: [cluster-autoscaler, cluster-autoscaler-aws-cluster-autoscaler]
+
+  - name: metrics-server
+    workloads:
+      - {kind: Deployment, namespaces: [kube-system], names: [metrics-server]}
+
+  - name: cert-manager
+    workloads:
+      - {kind: Deployment, namespaces: [cert-manager], names: [cert-manager]}
