@@ -1,0 +1,34 @@
+version: "2"
+
+linters:
+  enable:
+    - errorlint
+    - gosec
+    - misspell
+    - bodyclose
+    - unconvert
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (*os.File).Close
+        - os.Remove
+    gosec:
+      excludes:
+        - G304 # run-record paths are validated against an ID pattern
+  exclusions:
+    presets:
+      - std-error-handling
+    rules:
+      - path: _test\.go
+        linters: [gosec, errcheck, bodyclose]
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/jin-k8s/jin
